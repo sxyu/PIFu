@@ -160,7 +160,8 @@ def render_prt_ortho(out_path,
     #  cam.ortho_ratio = 0.4 * (512 / im_size)
     cam.near = 1e-3
     cam.far = 1e3
-    cam.center = np.array([0, 0, 3.0])
+    CAM_DISTANCE = 3.0
+    cam.center = np.array([0, 0, CAM_DISTANCE])
     cam.sanity_check()
 
     # set path for obj, prt
@@ -238,14 +239,17 @@ def render_prt_ortho(out_path,
     sh = rotateSH(sh, make_rotate(0, sh_angle, 0).T)
 
     for p in pitch:
+        R = make_rotate(math.radians(p), 0, 0)
+        # Note we do not use R
+        if up_axis == 2:
+            R = np.matmul(R, make_rotate(math.radians(90), 0, 0))
         for y in tqdm(range(0, 360, angl_step)):
-            R = np.matmul(make_rotate(math.radians(p), 0, 0),
-                          make_rotate(0, math.radians(y), 0))
-            if up_axis == 2:
-                R = np.matmul(R, make_rotate(math.radians(90), 0, 0))
-
             rndr.rot_matrix = R
             rndr_uv.rot_matrix = R
+            rot_y = make_rotate(0, math.radians(y), 0)
+            cam.direction = np.matmul(rot_y, np.array([0, 0, -1.0]))
+            cam.right = np.matmul(rot_y, np.array([1, 0, 0]))
+            cam.center = -cam.direction * CAM_DISTANCE
             rndr.set_camera(cam)
             rndr_uv.set_camera(cam)
 
