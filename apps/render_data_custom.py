@@ -146,7 +146,7 @@ def rotateBand2(x, R):
     return dst
 
 
-def render_prt_ortho(out_path,
+def render_prt_persp(out_path,
                      folder_name,
                      subject_name,
                      shs,
@@ -155,9 +155,10 @@ def render_prt_ortho(out_path,
                      im_size,
                      angl_step=4,
                      n_light=1,
-                     pitch=[0]):
+                     pitch=[0],
+                     render_uv=False):
+
     cam = Camera(width=im_size, height=im_size)
-    #  cam.ortho_ratio = 0.4 * (512 / im_size)
     cam.near = 1e-3
     cam.far = 1e3
     CAM_DISTANCE = 3.0
@@ -215,12 +216,15 @@ def render_prt_ortho(out_path,
     os.makedirs(os.path.join(out_path, 'PARAM', subject_name), exist_ok=True)
     os.makedirs(os.path.join(out_path, 'RENDER', subject_name), exist_ok=True)
     os.makedirs(os.path.join(out_path, 'MASK', subject_name), exist_ok=True)
-    os.makedirs(os.path.join(out_path, 'UV_RENDER', subject_name),
-                exist_ok=True)
-    os.makedirs(os.path.join(out_path, 'UV_MASK', subject_name), exist_ok=True)
-    os.makedirs(os.path.join(out_path, 'UV_POS', subject_name), exist_ok=True)
-    os.makedirs(os.path.join(out_path, 'UV_NORMAL', subject_name),
-                exist_ok=True)
+    if render_uv:
+        os.makedirs(os.path.join(out_path, 'UV_RENDER', subject_name),
+                    exist_ok=True)
+        os.makedirs(os.path.join(out_path, 'UV_MASK', subject_name),
+                    exist_ok=True)
+        os.makedirs(os.path.join(out_path, 'UV_POS', subject_name),
+                    exist_ok=True)
+        os.makedirs(os.path.join(out_path, 'UV_NORMAL', subject_name),
+                    exist_ok=True)
 
     if not os.path.exists(os.path.join(out_path, 'val.txt')):
         f = open(os.path.join(out_path, 'val.txt'), 'w')
@@ -256,15 +260,14 @@ def render_prt_ortho(out_path,
             for j in range(n_light):
                 dic = {
                     'sh': sh,
-                    'px': cam.principal_x,
-                    'py': cam.principal_y,
+                    'cx': cam.principal_x,
+                    'cy': cam.principal_y,
                     'fx': cam.focal_x,
                     'fy': cam.focal_y,
-                    #  'ortho_ratio': cam.ortho_ratio,
                     'scale': y_scale,
-                    'center': vmed,
+                    'trans': -vmed * y_scale,
                     'cam_center': cam.center,
-                    'cam_dir': cam.direction,
+                    'cam_rot': np.matmul(make_rotate(np.pi, 0, 0), rot_y.T),
                     'R': R
                 }
 
@@ -289,37 +292,38 @@ def render_prt_ortho(out_path,
                                  '%d_%d_%02d.png' % (y, p, j)),
                     255.0 * out_mask)
 
-                rndr_uv.set_sh(sh)
-                rndr_uv.analytic = False
-                rndr_uv.use_inverse_depth = False
-                rndr_uv.display()
+                if render_uv:
+                    rndr_uv.set_sh(sh)
+                    rndr_uv.analytic = False
+                    rndr_uv.use_inverse_depth = False
+                    rndr_uv.display()
 
-                uv_color = rndr_uv.get_color(0)
-                uv_color = cv2.cvtColor(uv_color, cv2.COLOR_RGBA2BGR)
-                cv2.imwrite(
-                    os.path.join(out_path, 'UV_RENDER', subject_name,
-                                 '%d_%d_%02d.jpg' % (y, p, j)),
-                    255.0 * uv_color)
-
-                if y == 0 and j == 0 and p == pitch[0]:
-                    uv_pos = rndr_uv.get_color(1)
-                    uv_mask = uv_pos[:, :, 3]
+                    uv_color = rndr_uv.get_color(0)
+                    uv_color = cv2.cvtColor(uv_color, cv2.COLOR_RGBA2BGR)
                     cv2.imwrite(
-                        os.path.join(out_path, 'UV_MASK', subject_name,
-                                     '00.png'), 255.0 * uv_mask)
+                        os.path.join(out_path, 'UV_RENDER', subject_name,
+                                     '%d_%d_%02d.jpg' % (y, p, j)),
+                        255.0 * uv_color)
 
-                    data = {
-                        'default': uv_pos[:, :, :3]
-                    }  # default is a reserved name
-                    pyexr.write(
-                        os.path.join(out_path, 'UV_POS', subject_name,
-                                     '00.exr'), data)
+                    if y == 0 and j == 0 and p == pitch[0]:
+                        uv_pos = rndr_uv.get_color(1)
+                        uv_mask = uv_pos[:, :, 3]
+                        cv2.imwrite(
+                            os.path.join(out_path, 'UV_MASK', subject_name,
+                                         '00.png'), 255.0 * uv_mask)
 
-                    uv_nml = rndr_uv.get_color(2)
-                    uv_nml = cv2.cvtColor(uv_nml, cv2.COLOR_RGBA2BGR)
-                    cv2.imwrite(
-                        os.path.join(out_path, 'UV_NORMAL', subject_name,
-                                     '00.png'), 255.0 * uv_nml)
+                        data = {
+                            'default': uv_pos[:, :, :3]
+                        }  # default is a reserved name
+                        pyexr.write(
+                            os.path.join(out_path, 'UV_POS', subject_name,
+                                         '00.exr'), data)
+
+                        uv_nml = rndr_uv.get_color(2)
+                        uv_nml = cv2.cvtColor(uv_nml, cv2.COLOR_RGBA2BGR)
+                        cv2.imwrite(
+                            os.path.join(out_path, 'UV_NORMAL', subject_name,
+                                         '00.png'), 255.0 * uv_nml)
 
 
 if __name__ == '__main__':
@@ -374,7 +378,7 @@ if __name__ == '__main__':
     if args.input[-1] == '/':
         args.input = args.input[:-1]
     subject_name = args.input.split('/')[-1][:-4]
-    render_prt_ortho(args.out_dir,
+    render_prt_persp(args.out_dir,
                      args.input,
                      subject_name,
                      shs,
