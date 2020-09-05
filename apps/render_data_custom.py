@@ -267,8 +267,8 @@ def render_prt_persp(out_path,
                     'scale': y_scale,
                     'trans': -vmed * y_scale,
                     'cam_center': cam.center,
-                    'cam_rot': np.matmul(make_rotate(np.pi, 0, 0), rot_y.T),
-                    'R': R
+                    'cam_rot': np.matmul(make_rotate(np.pi, 0, 0), rot_y.T)  #,
+                    #  'R': R
                 }
 
                 rndr.set_sh(sh)
@@ -282,14 +282,14 @@ def render_prt_persp(out_path,
 
                 np.save(
                     os.path.join(out_path, 'PARAM', subject_name,
-                                 '%d_%d_%02d.npy' % (y, p, j)), dic)
+                                 '{:03}_{:03}.npy'.format(y, p)), dic)
                 cv2.imwrite(
                     os.path.join(out_path, 'RENDER', subject_name,
-                                 '%d_%d_%02d.jpg' % (y, p, j)),
+                                 '{:03}_{:03}.jpg'.format(y, p)),
                     255.0 * out_all_f)
                 cv2.imwrite(
                     os.path.join(out_path, 'MASK', subject_name,
-                                 '%d_%d_%02d.png' % (y, p, j)),
+                                 '{:03}_{:03}.png'.format(y, p)),
                     255.0 * out_mask)
 
                 if render_uv:
@@ -302,10 +302,10 @@ def render_prt_persp(out_path,
                     uv_color = cv2.cvtColor(uv_color, cv2.COLOR_RGBA2BGR)
                     cv2.imwrite(
                         os.path.join(out_path, 'UV_RENDER', subject_name,
-                                     '%d_%d_%02d.jpg' % (y, p, j)),
+                                     '{:03}_{:03}.jpg'.format(y, p)),
                         255.0 * uv_color)
 
-                    if y == 0 and j == 0 and p == pitch[0]:
+                    if y == 0 and p == pitch[0]:
                         uv_pos = rndr_uv.get_color(1)
                         uv_mask = uv_pos[:, :, 3]
                         cv2.imwrite(
@@ -357,7 +357,7 @@ if __name__ == '__main__':
     parser.add_argument('-s',
                         '--size',
                         type=int,
-                        default=512,
+                        default=1024,
                         help='rendering image size')
     args = parser.parse_args()
 
